@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Flappy Bird Full</title>
+  <style>
+    canvas {
+      border: 2px solid black;
+      background: skyblue;
+      display: block;
+      margin: auto;
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="game" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// Trạng thái game
+let state = "start"; // start | playing | gameover
+
+// Chim
+let bird;
+let pipes;
+let score;
+
+let gravity = 0.4;
+let lift = -0.3;
+let jump = -5;
+
+let isPressing = false;
+
+let pipeWidth = 50;
+let gap = 150;
+
+// Reset game
+function resetGame() {
+  bird = {
+    x: 80,
+    y: 250,
+    size: 20,
+    velocity: 0
+  };
+  pipes = [];
+  score = 0;
+}
+
+// Tạo ống
+function createPipe() {
+  if (state !== "playing") return;
+
+  let topHeight = Math.random() * 250 + 50;
+  pipes.push({
+    x: canvas.width,
+    top: topHeight,
+    bottom: canvas.height - topHeight - gap,
+    passed: false
+  });
+}
+
+// Điều khiển
+function handleInput() {
+  if (state === "start") {
+    resetGame();
+    state = "playing";
+    return;
+  }
+
+  if (state === "gameover") {
+    state = "start";
+    return;
+  }
+
+  if (!isPressing) {
+    bird.velocity = jump;
+  }
+  isPressing = true;
+}
+
+function releaseInput() {
+  isPressing = false;
+}
+
+// Keyboard
+document.addEventListener("keydown", handleInput);
+document.addEventListener("keyup", releaseInput);
+
+// Mouse + Touch
+canvas.addEventListener("mousedown", handleInput);
+canvas.addEventListener("mouseup", releaseInput);
+canvas.addEventListener("touchstart", handleInput);
+canvas.addEventListener("touchend", releaseInput);
+
+// Update
+function update() {
+  if (state !== "playing") return;
+
+  bird.velocity += gravity;
+
+  if (isPressing) {
+    bird.velocity += lift;
+  }
+
+  bird.y += bird.velocity;
+
+  if (bird.y + bird.size > canvas.height || bird.y < 0) {
+    state = "gameover";
+  }
+
+  pipes.forEach(pipe => {
+    pipe.x -= 2;
+
+    if (
+      bird.x < pipe.x + pipeWidth &&
+      bird.x + bird.size > pipe.x &&
+      (bird.y < pipe.top || bird.y + bird.size > canvas.height - pipe.bottom)
+    ) {
+      state = "gameover";
+    }
+
+    if (!pipe.passed && pipe.x + pipeWidth < bird.x) {
+      pipe.passed = true;
+      score++;
+    }
+  });
+
+  pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
+}
+
+// Vẽ
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (state === "start") {
+    ctx.fillStyle = "black";
+    ctx.font = "30px Arial";
+    ctx.fillText("FLAPPY BIRD", 90, 250);
+    ctx.font = "18px Arial";
+    ctx.fillText("Click / Tap / Press to Start", 70, 300);
+    return;
+  }
+
+  drawBird();
+  function drawBird() {
+  let x = bird.x;
+  let y = bird.y;
+
+  // Thân chim (tròn)
+  ctx.fillStyle = "yellow";
+  ctx.beginPath();
+  ctx.arc(x, y, 15, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cánh (đập theo velocity)
+  ctx.fillStyle = "orange";
+  ctx.beginPath();
+  ctx.ellipse(
+    x - 5,
+    y,
+    10,
+    Math.abs(bird.velocity) * 1.5 + 5,
+    0,
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  // Mắt
+  ctx.fillStyle = "white";
+  ctx.beginPath();
+  ctx.arc(x + 5, y - 5, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "black";
+  ctx.beginPath();
+  ctx.arc(x + 7, y - 5, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mỏ
+  ctx.fillStyle = "red";
+  ctx.beginPath();
+  ctx.moveTo(x + 15, y);
+  ctx.lineTo(x + 25, y + 5);
+  ctx.lineTo(x + 15, y + 10);
+  ctx.fill();
+}
+  pipes.forEach(pipe => {
+  // Ống trên
+  drawPipe(pipe.x, 0, pipeWidth, pipe.top, true);
+
+  // Ống dưới
+  drawPipe(
+    pipe.x,
+    canvas.height - pipe.bottom,
+    pipeWidth,
+    pipe.bottom,
+    false
+  );
+});
+  function drawPipe(x, y, width, height, isTop) {
+  // Gradient màu
+  let gradient = ctx.createLinearGradient(x, 0, x + width, 0);
+  gradient.addColorStop(0, "#2ecc71");
+  gradient.addColorStop(0.5, "#27ae60");
+  gradient.addColorStop(1, "#2ecc71");
+
+  ctx.fillStyle = gradient;
+
+  // Thân ống
+  ctx.fillRect(x, y, width, height);
+
+  // Viền tối
+  ctx.strokeStyle = "#145a32";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x, y, width, height);
+
+  // Đầu ống (cap)
+  let capHeight = 20;
+  ctx.fillStyle = "#27ae60";
+
+  if (isTop) {
+    ctx.fillRect(x - 5, height - capHeight, width + 10, capHeight);
+    ctx.strokeRect(x - 5, height - capHeight, width + 10, capHeight);
+  } else {
+    ctx.fillRect(x - 5, y, width + 10, capHeight);
+    ctx.strokeRect(x - 5, y, width + 10, capHeight);
+  }
+
+  // Highlight (ánh sáng)
+  ctx.fillStyle = "rgba(255,255,255,0.2)";
+  ctx.fillRect(x + 5, y, 5, height);
+}
+  
+
+  // Điểm
+  ctx.fillStyle = "black";
+  ctx.font = "24px Arial";
+  ctx.fillText("Score: " + score, 10, 30);
+
+  if (state === "gameover") {
+    ctx.font = "30px Arial";
+    ctx.fillText("GAME OVER", 100, 250);
+    ctx.font = "18px Arial";
+    ctx.fillText("Click to Restart", 120, 300);
+  }
+}
+
+// Loop
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+setInterval(createPipe, 1500);
+loop();
+</script>
+
+</body>
+</html>
